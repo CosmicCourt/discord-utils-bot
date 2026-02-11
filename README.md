@@ -13,4 +13,4 @@ The name does not mean anything, it was random nonsense that came to mind.
 - `PyNaCl <= 1.6.2`
 - `discord.py <= 2.6.4`
 - `ffmpeg; installed locally, with the .exe on PATH if on Windows`
-- `libopus (library placed in Assets/Libraries/libopus; libopus.so* for Linux, libopus.dll for Windows)`
+- `libopus (library placed in Assets/Libraries/libopus; libopus.so for Linux, libopus.dll for Windows)`
