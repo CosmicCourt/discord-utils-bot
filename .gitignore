@@ -212,4 +212,5 @@ __marimo__/
 config.toml
 Logs
 test.py
-/Assets/Music/MIKU
+/Assets/Music
+/Assets/Libraries
