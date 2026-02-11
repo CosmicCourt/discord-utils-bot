@@ -208,5 +208,8 @@ __marimo__/
 
 # venv deleted my entire gitignore. TRY ME, VENV, TRY ME
 
-goals.md
 *.code-workspace
+config.toml
+Logs
+test.py
+/Assets/Music/MIKU
