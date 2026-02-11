@@ -12,5 +12,5 @@ The name does not mean anything, it was random nonsense that came to mind.
 ## Requirements
 - `PyNaCl <= 1.6.2`
 - `discord.py <= 2.6.4`
-- ffmpeg (executable placed in Assets/Libraries/ffmpeg)
-- libopus (library placed in Assets/Libraries/libopus)
+- `ffmpeg; installed locally, with the .exe on PATH if on Windows`
+- `libopus (library placed in Assets/Libraries/libopus; libopus.so* for Linux, libopus.dll for Windows)`
