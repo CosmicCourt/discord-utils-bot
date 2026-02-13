@@ -2,8 +2,8 @@
 * Speaking in VC
     * ~~Playback of audio files~~
     * Grabbing audio files from links
-    * Queue, pause/play, volume control, better listing magic, probably better language to run this in tbf
-    * There really has to be a better way to do this that isn't so CPU-heavy, my computer likes to heat up my room to uncomfortable amounts when under heavy loads
+    * ~~Queue, pause/play~~, volume control, better listing magic
+    * ~~Metadata for messages when available~~
 
 * Message purging
     * One user, all users, only bots, only users, list of users

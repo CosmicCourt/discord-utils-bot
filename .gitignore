@@ -212,5 +212,9 @@ __marimo__/
 config.toml
 Logs
 test.py
-/Assets/Music
+/Assets/Music/*
+!/Assets/Music/readme.txt
 /Assets/Libraries
+randompick.py
+/Config
+pyrightconfig.json
