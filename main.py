@@ -124,7 +124,6 @@ class Creature(commands.Bot):
     async def setup_hook(self) -> None:
         self.activity = discord.Activity(name=settings['client']['activity'], type=discord.ActivityType.playing)
         self.status = getattr(discord.Status, settings['client']['status'])
-        await self.load_extension('cogs.configtree')
         if settings['voicework']['group_enabled']:
             await self.load_extension('cogs.voicework')
 

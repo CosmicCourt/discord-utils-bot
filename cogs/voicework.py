@@ -189,7 +189,7 @@ def is_user_trusted():
         bot_owner = False
         if interaction.user.id in settings['users']['trusted']:
             trusted = True
-        if interaction.guild.get_role(json.get_setting(interaction.guild, 'dj')) in interaction.user.roles:
+        if interaction.guild.get_role(json.get_setting(interaction.guild, 'dj','vw')) in interaction.user.roles:
             dj_role = True
         if interaction.user.id == settings['client']['bot_owner']:
             bot_owner = True
@@ -252,42 +252,51 @@ class CustomVoiceClient(discord.VoiceClient):
         super().__init__(*args, **kwargs)
         self.queue = []
         self.repeat = 'none'
+        self.stop_it = False
+        self.stop_it_skip = False
+        self.play_count = 0
 
     def track_finished(self, error):
-        self.playback_counter = 0
-        match self.repeat:
-            case 'none':
-                self.queue.pop(0)
-                self.playback_counter = 0
-            case 'single':
-                self.playback_counter = 0
-                print('We\'re calling track_finished now')
-                rebuilt_source = reconstruct_as(self.queue[0])
-                self.queue.pop(0)
-                self.queue.insert(0, rebuilt_source)
-                self.play(self.queue[0],after=self.track_finished)
-            case 'all':
-                rebuilt_source = reconstruct_as(self.queue[self.playback_counter])
-                self.queue.pop(self.playback_counter)
-                self.queue.insert(self.playback_counter, rebuilt_source)
-                if self.playback_counter + 1 == len(self.queue) and len(self.queue) != 0:
-                    self.playback_counter = 0
-                self.playback_counter += 1
+        self.queue.pop(0)
         if self.queue:
-            self.play(self.queue[self.playback_counter], after=self.track_finished)
+            self.play(self.queue[0], after=self.check_repeat)
+
+    def track_finished_single(self, error):
+        test = self.queue.pop(0)
+        if not self.stop_it_skip:
+            new_source = reconstruct_as(test)
+            self.queue.insert(0, new_source)
+        else:
+            self.stop_it_skip = False
+        self.play(self.queue[0], after=self.check_repeat)
+        
+    def track_finished_all(self, error):
+        track = self.queue.pop(0)
+        new_source = reconstruct_as(track)
+        self.queue.append(new_source)
+        self.play(self.queue[0], after=self.check_repeat)
+
+    def check_repeat(self, error):
+        if not self.stop_it:
+            match self.repeat:
+                case 'none':
+                    self.track_finished(error)
+                case 'all':
+                    self.track_finished_all(error)
+                case 'single':
+                    self.track_finished_single(error)
+                case 'show':
+                    raise discord.ClientException('self.repeat is set to "show"')
+        else:
+            return
 
     def add_track(self, track: discord.AudioSource):
         self.queue.append(track)
         if len(self.queue) == 1:
-            self.play(self.queue[0], after=self.track_finished)
-        else:
-            pass
+            self.play(self.queue[0], after=self.check_repeat)
 
     def skip_track(self):
-        if self.is_playing():
-            self.stop()
-        elif self.queue:
-            self.queue.pop(0)
+        self.stop()
 
 class VoiceWork(commands.Cog, name='VoiceWork'):
     group = discord.app_commands.Group(name='music',description='Music-related commands.')
@@ -296,8 +305,11 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
         self.client:discord.Client = client
 
     @group.command(name='repeat',description='Set the repeat mode.')
-    async def repeat(self, interaction:discord.Interaction, new_value:Literal['none','single','all']):
-        json.change_setting(interaction.guild,'repeat',new_value)
+    async def repeat(self, interaction:discord.Interaction, new_value:Literal['none','single','all','show']):
+        if new_value == 'show':
+            await interaction.response.send_message('Repeat is currently set to "{}".'.format(json.get_setting(interaction.guild,'repeat','vw')))
+            return
+        json.change_setting(interaction.guild,'repeat',new_value,'vw')
         if len(self.client.voice_clients) >= 0:
             voice_channel = await get_voiceclient(self.client, interaction.guild)
             voice_channel.repeat = new_value
@@ -324,7 +336,7 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
         else:
             await interaction.response.defer()
             voice_channel:CustomVoiceClient = await interaction.user.voice.channel.connect(cls=CustomVoiceClient)
-            voice_channel.repeat = json.get_setting(interaction.guild,'repeat')
+            voice_channel.repeat = json.get_setting(interaction.guild,'repeat','vw')
             await interaction.followup.send("Joined `{}` successfully.".format(interaction.user.voice.channel.name))
         
     @group.command(name='disconnect',description='Disconnects from the current voice channel.')
@@ -384,13 +396,22 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 file_name = filename[:-4]
             else:
                 file_name = filename
-        audio_file = TrackWithMeta(le_sound,json.get_setting(interaction.guild, 'volume'), track_name, track_artist, file_name, track_hour, track_minute, track_second, './Assets/Music/{}'.format(filepath)) 
+        audio_file = TrackWithMeta(le_sound,json.get_setting(interaction.guild, 'volume','vw'), track_name, track_artist, file_name, track_hour, track_minute, track_second, './Assets/Music/{}'.format(filepath)) 
         voice_channel.add_track(audio_file)
         file_identifier = '{} - {}'.format(audio_file.trackname, audio_file.trackartist) if audio_file.trackname != 'UNTAGGED' and audio_file.trackname != 'UNTAGGED' else '{}'.format(audio_file.filename)
         if len(voice_channel.queue) >= 2:
             await interaction.followup.send('Added to queue: `{}`'.format(file_identifier))
         else:
             await interaction.followup.send('Now playing: `{}`'.format(file_identifier))
+
+    @group.command(name='setdj',description='Sets which role is considered as the "DJ" role (has access to the playback commands).')
+    @discord.app_commands.describe(roleid='The ID of the new DJ role.')
+    async def dj(self, interaction:discord.Interaction, roleid:int):
+        json.change_setting(interaction.guild,'dj',roleid,'vw')
+        if roleid != 0:
+            await interaction.response.send_message('The role `{}` has been set as the DJ role.'.format(interaction.guild.get_role(roleid).name),ephemeral=True)
+        else:
+            await interaction.response.send_message('The DJ role has been cleared.',ephemeral=True)
 
     @group.command(name='resume',description='Resumes the paused track.')
     @is_user_trusted()
@@ -442,6 +463,7 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
             if not type(voice_channel.source) == TrackWithMeta:
                 raise IncorrectAudioSourceError('Given AudioSource is not a TrackWithMeta AudioSource')
             skipped_track:TrackWithMeta = voice_channel.source
+            voice_channel.stop_it_skip = True
             voice_channel.skip_track()
             if skipped_track.trackname == 'UNTAGGED' and skipped_track.trackartist == 'UNTAGGED':
                 if voice_channel.is_playing():
@@ -476,10 +498,12 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
         except MissingVoiceClientError:
             await interaction.response.send_message('You can\'t stop nothing.')
             return
+        voice_channel.stop_it = True
         temp_track = voice_channel.source
         voice_channel.queue = [temp_track]
         voice_channel.stop()
         await interaction.response.send_message('Stopped playing audio.')
+        voice_channel.stop_it = False
     
     @group.command(name='remove',description='Removes an item from the queue.')
     @discord.app_commands.describe(index='The index of the track in the queue to remove.')
@@ -564,7 +588,7 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
         
     @group.command(name='shuffle_toggle',description='Toggle shuffle on or off.')
     async def shuffle(self, interaction:discord.Interaction, new_value:bool):
-        json.change_setting(interaction.guild,'shuffle',new_value)
+        json.change_setting(interaction.guild,'shuffle',new_value,'vw')
         await interaction.response.send_message('Shuffle has been turned {}.'.format('on' if new_value else 'off'))
 
     @group.command(name='clear',description='Clears the active queue.')
@@ -605,7 +629,7 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 await interaction.response.send_message('You need to be in a voice channel to play audio.')
                 return
         if order == 'default':
-            order = 'normal' if not json.get_setting(interaction.guild,'shuffle') else 'random'
+            order = 'normal' if not json.get_setting(interaction.guild,'shuffle','vw') else 'random'
         if folder == '':
             await interaction.response.send_message('Nothing to play.')
             return
@@ -642,7 +666,7 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 else:
                     file_name = filename
                 temp_source_main = discord.FFmpegPCMAudio(thingpath)
-                temp_source = TrackWithMeta(temp_source_main,json.get_setting(interaction.guild,'volume'),track_name,artist_name,file_name,track_hour,track_minute,track_second,thingpath)
+                temp_source = TrackWithMeta(temp_source_main,json.get_setting(interaction.guild,'volume','vw'),track_name,artist_name,file_name,track_hour,track_minute,track_second,thingpath)
                 temp_queue.append(temp_source)
             if order == 'random':
                 new_queue = sample(temp_queue,len(temp_queue))
@@ -654,16 +678,22 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
             await interaction.followup.send('The contents of {} have been added to the queue.'.format(folder.split(os.sep)[:-1]))
 
 
+
+    @group.command(name='establish',description='Generates the base configuration file for a new server. WILL OVERWRITE AN EXISTING FILE.')
+    async def establish(self, interaction:discord.Interaction):
+        json.create(interaction.guild, 'vw')
+        await interaction.response.send_message('Config file for {} created at `./Config/Guilds/{}.json`.'.format(interaction.guild.name,interaction.guild.id),ephemeral=True)
+
     @group.command(name='volume',description='Change the volume music plays at.')
     @discord.app_commands.describe(amount='The volume to set, with a range of 0.0 to 1.0 (representing 0 - 100%). Leave this empty to show the current volume.')
     @is_user_trusted()
     async def volume(self, interaction:discord.Interaction, amount:discord.app_commands.Range[float, 0.0, 1.0] = 10.0):
         voice_channel:CustomVoiceClient|None = None
         if amount == 10.0:
-            current_volume = int(json.get_setting(interaction.guild,'volume') * 100)
+            current_volume = int(json.get_setting(interaction.guild,'volume','vw') * 100)
             await interaction.response.send_message('Current volume is {}.'.format(str(current_volume) + '%'))
             return
-        json.change_setting(interaction.guild,'volume',amount)
+        json.change_setting(interaction.guild,'volume',amount,'vw')
         volume_percent = int(amount * 100)
         volume = str(volume_percent) + "%"
         await interaction.response.defer()
