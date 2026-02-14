@@ -146,13 +146,19 @@ async def on_ready():
 
 @client.event
 async def on_message(message:discord.Message):
-    if message.content.lower() == '^sync':
-        await client.tree.sync()
-        if message.author.id not in settings['users']['trusted']:
-            await message.channel.send('Syncing slash commands. (You might need to restart Discord.)\n-# You\'re lucky this is the one thing I *don\'t* mind you doing...')
-        else:
-            await message.channel.send('Syncing slash commands. (You might need to restart Discord.)')
-        print('Syncing slash commands. (You might need to restart Discord.)')
+    match message.content.lower():
+        case '^sync':
+            await client.tree.sync()
+            if message.author.id not in settings['users']['trusted']:
+                await message.channel.send('Syncing slash commands. (You might need to restart Discord.)\n-# You\'re lucky this is the one thing I *don\'t* mind you doing...')
+            else:
+                await message.channel.send('Syncing slash commands. (You might need to restart Discord.)')
+            print('Syncing slash commands. (You might need to restart Discord.)')
+        case 'do you know who max jacobs is'|'do you know who max jacobs is?':
+            await message.channel.send('I\'m gonna bomb your trailer park if you ever say that shit in my vicinity again.',reference=message,mention_author=True)
+        case _:
+            pass
+
 
 @client.tree.command(name='sync',description='Syncs slash commands with Discord.')
 @is_user_trusted()
@@ -185,7 +191,6 @@ async def shutdown(interaction:discord.Interaction):
         await interaction.response.send_message(be_mean())
         return
     await interaction.response.send_message('Shutting down...')
-    #if client.voice_clients
     await client.close()
 
 # voice_client = discord.utils.get(client.voice_clients, guild=ctx.guild)
