@@ -1,9 +1,10 @@
 # Bot Goals
 * Speaking in VC
     * ~~Playback of audio files~~
-    * Grabbing audio files from links
-    * ~~Queue, pause/play~~, volume control, better listing magic
+    * Grabbing audio files from links (in progress)
+    * ~~Queue, pause/play, volume control, better listing magic~~
     * ~~Metadata for messages when available~~
+    * Saving/reloading queue from a file (prototype the playlist system)
 
 * Message purging
     * One user, all users, only bots, only users, list of users

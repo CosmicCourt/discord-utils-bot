@@ -211,12 +211,22 @@ __marimo__/
 *.code-workspace
 config.toml
 Logs
-test.py
-/Assets/Music/*
-!/Assets/Music/readme.txt
-/Assets/Libraries
 randompick.py
 /Config
 pyrightconfig.json
-test2.py
+test*.py
+hell.py
+goals.md
+test*.txt
 
+# Subfolders of Assets; we want to keep the readme file, but everything else deserves hell.
+/Assets/Playlists/*
+!/Assets/Playlists/readme.txt
+/Assets/Music/*
+!/Assets/Music/readme.txt
+/Assets/Lyrics/*
+!/Assets/Lyrics/readme.txt
+/Assets/Libraries
+
+# yt_dlp / YoutubeDL's CLI argument to YoutubeDL option parser
+cli_to_api.py
