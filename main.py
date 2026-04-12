@@ -11,6 +11,8 @@ import tomllib
 import asyncio
 
 import jsman as json
+from common import ANSIStyles as style
+from common import fg_color, bg_color
 
 # Need to get the exact file location, because all the folders
 # work relative to where the script is running from,
@@ -21,7 +23,7 @@ if getattr(sys, 'frozen', False):
 else:
     froot = os.path.dirname(os.path.realpath(__file__))
 
-debug_dontstartnow = True
+debug_dontstartnow = False
 # Setting exclusively for testing; cannot be set anywhere other than
 # _SPECIFICALLY_ in the source code
 
@@ -74,23 +76,6 @@ def make_readme_files(
     with open(dest, mode='+w', encoding='utf-8') as outputfile:
         outputfile.write(content)
     return
-
-meanstrings = [
-    'Why don\'t you try being polite next time?',
-    'Hell no.',
-    'Why don\'t you try getting a job?',
-    'How unapologetically silly of you. No.',
-    'Get lost, friend.',
-    'Nuh-uh.',
-    'Absolutely not.',
-    'Me- Me when- Me when your mom- Me when your mom- \\*dies by Zeus\\*',
-    'I\'ve met Crawlers with more manners than you.',
-    'Mmm, no.'
-]
-
-def be_mean():
-    meancount = randrange(0,len(meanstrings) - 1)
-    return meanstrings[meancount]
 
 current_config_version = '0.1.5'
 
@@ -183,7 +168,7 @@ make_readme_files('playlists', False)
 make_readme_files('lyrics', False)
 
 if not os.path.exists(f'{froot}/Config/config.toml'):
-    _ = input('Config file not detected.\nIf this is your first time ' \
+    input('Config file not detected.\nIf this is your first time ' \
     'running the program, edit the newly-made config file with the ' \
     'required information, including your bot token.\nIf you do not ' \
     'specify a bot token, the program cannot run.\n\nPress Enter to exit.')
@@ -206,6 +191,8 @@ else:
               'file once you copy the values over.\n\nPress Enter ' \
               'to exit.')
         quit(0)
+
+eph = settings['client']['shut_up']
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
@@ -253,9 +240,11 @@ def is_user_trusted():
 
 @client.event
 async def on_ready():
-    print('\033[96mBot is ready!\nDisplay: \033[32;4m{}\033[0;96m\n' \
-          'Name: \033[32;4m{}\033[0;96m\nID: \033[32;4m{}\033[0m'
-          .format(client.user.display_name,client.user.name,client.user.id))
+    print(f'{style.ff_text}Bot is ready!\n' \
+          f'Display: {style.ff_disc}{client.user.display_name}' \
+          f'{style.ff_text}\nName: {style.ff_disc}{client.user.name}' \
+          f'{style.ff_text}\nID: {style.ff_disc}{client.user.id}' \
+          f'{style.reset}')
 
 @client.event
 async def on_message(message:discord.Message):
@@ -275,8 +264,11 @@ async def on_message(message:discord.Message):
             except discord.app_commands.CommandSyncFailure as e:
                 await message.channel.send(
                     'Failed to sync slash commands;\n`{}`'.format(e))
-            print('Syncing slash commands. (You might need to ' \
-            'restart Discord.)')
+                print(f'{style.ff_err}Failed to sync slash ' \
+                f'commands. Check the log for more info.{style.reset}')
+            print(f'{style.ff_text}Syncing slash commands. ' \
+                  f'{style.ff_err}(You might need to ' \
+                  f'restart Discord.){style.reset}')
         case 'do you know who max jacobs is'|'do you know who max jacobs is?':
             await message.channel.send(
                 'I\'m gonna bomb your trailer park if you ever say ' \
@@ -286,45 +278,52 @@ async def on_message(message:discord.Message):
             pass
 
 
-@client.tree.command(name='sync',description='Syncs slash commands with Discord.')
+@client.tree.command(name='sync',
+                     description='Syncs slash commands with Discord.')
 @is_user_trusted()
 async def resync(interaction:discord.Interaction):
     try:
         await client.tree.sync()
     except discord.app_commands.CommandSyncFailure as e:
         await interaction.response.send_message(
-            'Failed to sync commands.\n`{}`'.format(e), ephemeral = True)
+            'Failed to sync commands.\n`{}`'.format(e),
+            ephemeral = eph)
+        print(f'{style.ff_err}Failed to sync slash commands.' \
+              f'Check the log for more info.{style.reset}')
     else:
         await interaction.response.send_message(
             'Slash commands have been synced. (You may need to restart ' \
-            'Discord.)', ephemeral = True)
+            'Discord.)', ephemeral = eph)
+        print(f'{style.ff_text}Syncing slash commands. ' \
+              f'{style.ff_err}(You might need to ' \
+              f'restart Discord.){style.reset}')
 
 @client.tree.command(name='reload',description='Reloads a command group/cog.')
 @discord.app_commands.describe(target='The cog to reload.')
+@is_user_trusted()
 async def reload(interaction:discord.Interaction,target: Literal['VoiceWork','MessagePurge','RoutinePurge','ForumExclusivity','MessageLogging']):
     match target:
         case 'VoiceWork':
             await client.reload_extension('cogs.voicework')
-            await interaction.response.send_message('VoiceWork has been reloaded.')
+            await interaction.response.send_message('VoiceWork has been reloaded.', ephemeral=eph)
         case 'MessagePurge':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
         case 'RoutinePurge':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
         case 'ForumExclusivity':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
         case 'MessageLogging':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
 
 @client.tree.command(name='shutdown',description='Closes the bot\'s connection to Discord.')
+@is_user_trusted()
 async def shutdown(interaction:discord.Interaction):
-    if interaction.user.id not in settings['users']['trusted']:
-        await interaction.response.send_message(be_mean())
-        return
-    await interaction.response.send_message('Shutting down...')
+    await interaction.response.send_message('Shutting down...', ephemeral=eph)
+    print(f'{style.ff_text}Shutdown called.{style.reset}')
     await client.close()
 
 if not debug_dontstartnow:
     client.run(settings['client']['token'], log_handler=None)
 else:
-    print('DontRunNow set; exiting.')
+    print(f'{style.ff_err}DontRunNow set; exiting.{style.reset}')
     quit(0)

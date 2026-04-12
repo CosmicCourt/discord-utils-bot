@@ -1,13 +1,13 @@
-# Olfin Swimmer
+# Fishcork
 A Discord bot designed to do a small handful of things, from a growing list.
-The name does not mean anything, it was random nonsense that came to mind.
+The name doesn't really mean much.
 
 ## Features
-- Mass deletion of messages
-- VoiceWork: Playback of audio files over a voice channel, reading from ./Assets/Music (supports subfolders) or a web link (eventually)
-- Configurable time-based message deletion per-channel
-- Automatic deletion of messages by rule-matching users in forum posts
-- Logging of message editing and message deletion to external servers (would you believe I'm in a server with someone who deletes Dyno's logging messages? Yeah, I'm taking them somewhere else if you're gonna start that)
+- Mass deletion of messages \[unimplemented\]
+- VoiceWork: Playback of audio files over a voice channel, reading from ./Assets/Music (supports subfolders)
+- Configurable time-based message deletion per-channel \[unimplemented\]
+- Automatic deletion of messages by rule-matching users in forum posts \[unimplemented\]
+- Logging of message editing and message deletion to external servers (would you believe I'm in a server with someone who deletes Dyno's logging messages? Yeah, I'm taking them somewhere else if you're gonna start that) \[unimplemented\]
 
 ## Requirements
 - `discord.py <= 2.7.1`
