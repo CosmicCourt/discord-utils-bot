@@ -8,6 +8,7 @@ The name doesn't really mean much.
 - Configurable time-based message deletion per-channel \[unimplemented\]
 - Automatic deletion of messages by rule-matching users in forum posts \[unimplemented\]
 - Logging of message editing and message deletion to external servers (would you believe I'm in a server with someone who deletes Dyno's logging messages? Yeah, I'm taking them somewhere else if you're gonna start that) \[unimplemented\]
+- Messager: Sending messages in channels as the bot (abrupt decision; I wanted to get in on a joke)
 
 ## Requirements
 - `discord.py <= 2.7.1`
