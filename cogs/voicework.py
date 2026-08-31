@@ -71,6 +71,20 @@ ydl_opts = dl_opts = {'extract_flat': 'discard_in_playlist',
  'retries': 10,
  'warn_when_outdated': True}
 
+nolrcs = [
+    'You could always read yuri while you listen, though.',
+    "But you're playing something on the side anyway, aren't you?",
+    "But others might, if you're looking for them.",
+    "You're still cool, though.",
+    "Luckily, this means you don't need them for this one!",
+    "It's probably fine... right?",
+    'Let me offer you a cookie to compensate. :cookie:',
+    "You playin' Minecraft over there?",
+    'Question is, why?',
+    "I bet the next song will have yuri in it, though. If it's " \
+    "`O.U.F.O.I.` then you're based."
+]
+
 meanstrings = [
     "Why don't you try being polite next time?",
     'Hell no.',
@@ -152,6 +166,12 @@ def filename_stripper(path):
     bot = '.'.join(slas.split('.')[0:-1])
     return bot
 
+async def nolrc_line():
+    if randrange(1,50) == 5:
+        return ""
+    else:
+        return "\n{}".format(nolrcs[randrange(0,len(nolrcs) - 1)])
+
 async def lrc_format(lyrics):
     headpattern = r"^ *\[\D{1,2}:.+\]"
     rxpattern = r"\[\d{2}:\d{2}:\d{2,3}\] *"
@@ -193,7 +213,7 @@ def get_data(mutafile):
     except Exception:
         return str('UNTAGGED'), str('UNTAGGED')
     else:
-        return song_name, artist_name
+        return song_name, str(artist_name).replace(";", ", ")
 
 def get_duration(mutafile):
     length = mutafile.info.length
@@ -288,7 +308,7 @@ def load_opus_if_enabled(is_enabled):
             return True
     else:
         return False
-    
+
 class CosmicVoice(discord.VoiceClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -331,11 +351,11 @@ class CosmicVoice(discord.VoiceClient):
         if not self.stop_it:
             match self.repeat:
                 case 'none':
-                    self.track_finished(error)
+                    _ = self.track_finished(error)
                 case 'all':
-                    self.track_finished_all(error)
+                    _ = self.track_finished_all(error)
                 case 'single':
-                    self.track_finished_single(error)
+                    _ = self.track_finished_single(error)
                 case 'show':
                     raise discord.ClientException(
                         'self.repeat is set to "show"')
@@ -372,12 +392,17 @@ class TrackWithMeta(discord.PCMVolumeTransformer):
         self._mutaname, self._mutaartist = get_data(self._muta)
         self.name = name if name != 'MUTA' else self._mutaname
         self.artist = artist if artist != 'MUTA' else self._mutaartist
+        # I'm using the same music folder for this bot and a Jellyfin
+        # server on my computer; Jellyfin separates artists with a
+        # semicolon and I don't want it to display that way
         self.filename = filename_stripper(self.filepath)
         self.hours, self.minutes, self.seconds = get_duration(self._muta)
         self.time_passed: int = 0
 
     def __repr__(self):
-        if self.name != 'UNTAGGED' and self.name != 'UNTAGGED':
+        if self.name != 'UNTAGGED' and self.artist == 'NONE':
+            return f'{self.name}'
+        elif self.name != 'UNTAGGED' and self.artist != 'UNTAGGED':
             return f'{self.artist} - {self.name}'
         else:
             return f'{self.filename}'
@@ -490,9 +515,11 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
     @playb.command(name='play',description='Plays an audio file with ' \
     'the given name. Loaded from ./Assets/Music') 
     # The REAL meat of this mess. Wow.
-    @discord.app_commands.describe(filepath='The file to play.')
+    @discord.app_commands.describe(filepath='The file to play.',
+                                   subfolder='Whether subfolders' \
+                                   ' can be indexed.')
     async def play_audio(self, interaction: discord.Interaction, 
-                         filepath:str):
+                         filepath:str, subfolder:bool):
         if interaction.user.voice is None:
             await interaction.response.send_message(
                 'You need to be in a voice channel to play audio.',
@@ -507,13 +534,17 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
         await interaction.response.defer()
         if filepath.startswith('fl!'):
             source = 'folder'
+            filepath = filepath[2:]
         elif filepath.startswith('pl!'):
             source = 'playlist'
+            filepath = filepath[2:]
         elif filepath.startswith('http'):
             source = 'online'
         else:
-            if os.path.isdir(filepath):
+            if os.path.isdir('{}/Assets/Music/{}'
+                             .format(froot, filepath)):
                 source = 'folder'
+                print('Source tagged: folder')
             elif (
                 not filepath.endswith(
                 ('mp3','mp4','wav','flac','ogg','ac3','aac',
@@ -522,6 +553,7 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 source = 'playlist'
             else:
                 source = 'local'
+                print('Source tagged: local')
         match source:
             case 'playlist':
                 if filepath.endswith('.txt'):
@@ -568,8 +600,9 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 temp_queue = []
                 for (root, dirs, file) in os.walk(
                     '{}/Assets/Music/{}'.format(froot, filepath),
-                    topdown=True):
-                    dirs[:] = []
+                    topdown=True, followlinks=True):
+                    if not subfolder:
+                        dirs[:] = []
                     for f in file:
                         if not f.endswith(
                             ('mp3','mp4','wav','flac','ogg',
@@ -577,11 +610,10 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                              'ac3','mp2','m4a','m4r')):
                             pass
                         else:
-                            file_list.append(f)
+                            file_list.append(root + '/' + f)
                 file_list.sort(key=natural_keys)
                 for file in file_list:
-                    thingpath = ('{}/Assets/Music/{}/{}'
-                                .format(froot, filepath, file))
+                    thingpath = file
                     thingpath = await juggle_pathsep(thingpath)
                     temp_queue.append(
                         TrackWithMeta(thingpath, 
@@ -894,6 +926,12 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 v_chan.source, style.reset))
             return
         await interaction.response.defer()
+        with open(file, 'r', encoding='utf-8') as lyricfile:
+            if lyricfile.readline().strip().lower() == '!nolyric':
+                await interaction.followup.send(
+                    'This song has no lyrics.{}'
+                    .format(await nolrc_line()))
+                return
         if file.endswith('.lrc'):
             with open(file, 'r', encoding='utf-8') as lyricfile:
                 lyrics = lyricfile.read()
@@ -1264,6 +1302,8 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
             "playlist `filth pile`; name reserved for saving queue.")
         else:
             try:
+                os.makedirs('{}/Assets/Playlists/{}'
+                            .format(froot, subfolder), exist_ok=True)
                 with open('{}/Assets/Playlists/{}{}.txt'
                             .format(froot, subfolder, name), 
                             mode = 'x', encoding = 'utf-8') as plan:
@@ -1344,11 +1384,19 @@ class VoiceWork(commands.Cog, name='VoiceWork'):
                 await interaction.response.send_message(
                     "No file path given.")
             else:
-                audio.insert(-1, path)
+                print("Attempting to add {} to playlist {}"
+                      .format(path, playlist))
+                audio.insert(-1, path + '\n')
                 await interaction.response.send_message(
                     "Added `{}` to `{}`.".format(path, playlist))
         else:
+            print("Attempting to add {} to playlist {}"
+                  .format(v_chan.queue[index].filepath, playlist))
             audio.insert(-1, v_chan.queue[index].filepath + '\n')
+        with open('{}/Assets/Playists/{}.txt'.format(froot, playlist),
+                  mode='w', encoding='utf-8') as magic:
+            magic.writelines(audio)
+        print("Playlist {} written successfully".format(playlist))
 
 
     # Config commands

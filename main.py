@@ -77,10 +77,10 @@ def make_readme_files(
         outputfile.write(content)
     return
 
-current_config_version = '0.1.5'
+current_config_version = '0.2.0'
 
 default_config = '''# Discord Multi-Bot Configuration
-version = "0.1.5" # Version of the config file
+version = "0.2.0" # Version of the config file
 # If this is older than what the program expects,
 # it'll drop any new values into the file,
 # ideally leaving settings intact
@@ -116,6 +116,9 @@ logging_destination_server = 0 # The ID of the guild where message logs are prox
 logging_destination_channel = 0 # The ID of the channel where message logs are proxied to.
 ignored_roles = [] # Roles ignored by the logging.
 ignored_channels = [] # Channels ignored by the logging.
+
+[messagemirror]
+group_enabled = true # If the MessageMirror commands can be used.
 '''
 # YEAH, CAN'T WRITE TOML, HUH!? THEN I'LL DO IT MYSELF!
 
@@ -225,6 +228,8 @@ class Creature(commands.Bot):
         self.status = getattr(discord.Status, settings['client']['status'])
         if settings['voicework']['group_enabled']:
             await self.load_extension('cogs.voicework')
+        if settings['messagemirror']['group_enabled']:
+            await self.load_extension('cogs.messagemirror')
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -301,19 +306,29 @@ async def resync(interaction:discord.Interaction):
 @client.tree.command(name='reload',description='Reloads a command group/cog.')
 @discord.app_commands.describe(target='The cog to reload.')
 @is_user_trusted()
-async def reload(interaction:discord.Interaction,target: Literal['VoiceWork','MessagePurge','RoutinePurge','ForumExclusivity','MessageLogging']):
+async def reload(interaction:discord.Interaction,target: Literal['VoiceWork','MessagePurge','RoutinePurge','ForumExclusivity','MessageLogging', 'MessageMirror']):
+    print("Reload called: {}".format(target))
     match target:
         case 'VoiceWork':
             await client.reload_extension('cogs.voicework')
             await interaction.response.send_message('VoiceWork has been reloaded.', ephemeral=eph)
+            print("{} reloaded.".format(target))
         case 'MessagePurge':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            print("{} not implemented.".format(target))
         case 'RoutinePurge':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            print("{} not implemented.".format(target))
         case 'ForumExclusivity':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            print("{} not implemented.".format(target))
         case 'MessageLogging':
-            await interaction.response.send_message('Not implemented yet.',ephemeral=eph)
+            await interaction.response.send_message('Not implemented yet.',ephemeral=True)
+            print("{} not implemented.".format(target))
+        case 'MessageMirror':
+            await client.reload_extension('cogs.messagemirror')
+            await interaction.response.send_message('MessageMirror has been reloaded.', ephemeral=eph)
+            print("{} reloaded.".format(target))
 
 @client.tree.command(name='shutdown',description='Closes the bot\'s connection to Discord.')
 @is_user_trusted()
